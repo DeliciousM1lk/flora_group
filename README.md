@@ -43,5 +43,5 @@
 ├── backend/              # Django API
 │   ├── core/             # Конфигурация проекта (settings, urls)
 │   ├── main/             # Основная логика (модели Project, Category, Image)
-│   ├──manage.py         # CLI управления
-│   └── media/                # Хранилище контента
+│   ├──manage.py          # CLI управления
+│   └── media/            # Хранилище контента

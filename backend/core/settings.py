@@ -21,9 +21,13 @@ INSTALLED_APPS = [
     'rest_framework',
     'corsheaders',
     'django_filters',
+    'imagekit',
 
     # local
     'main',
+
+    # third party
+    'django_cleanup.apps.CleanupConfig',
 ]
 
 MIDDLEWARE = [

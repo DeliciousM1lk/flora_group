@@ -136,7 +136,37 @@ export default function ProjectDetailPage({ params }: PageProps) {
               </AnimatePresence>
             </div>
           </PhotoProvider>
+          {/* Bottom CTA */}
+          <motion.section
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+            className="mt-24"
+          >
+            <div className="rounded-[2rem] border border-border/40 bg-muted/30 backdrop-blur-sm px-8 py-12 sm:px-12 sm:py-16 flex flex-col md:flex-row items-center justify-between gap-8">
+              <div>
+                <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground font-bold mb-3">
+                  Смотреть ещё
+                </p>
+                <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
+                  Другие проекты
+                </h2>
+                <p className="text-muted-foreground mt-2 max-w-md">
+                  Ознакомьтесь с другими реализованными проектами
+                </p>
+              </div>
 
+              <Button
+                size="lg"
+                className="rounded-full px-8 h-14 text-base group"
+                onClick={() => router.push("/projects")}
+              >
+                Все проекты
+                <ArrowLeft className="ml-2 h-4 w-4 rotate-180 transition-transform group-hover:translate-x-1" />
+              </Button>
+            </div>
+          </motion.section>
         </div>
       </main>
       <Footer />

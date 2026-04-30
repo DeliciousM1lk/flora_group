@@ -11,35 +11,41 @@ import pillow_heif
 from imagekit.models import ImageSpecField
 from django.conf import settings
 
+
 # Регистрация поддержки HEIF/HEIC
 pillow_heif.register_heif_opener()
 
+
 class WatermarkGridProcessor:
     """Процессор для создания сетки водяных знаков."""
+
     def process(self, img):
-        watermark_path = Path(settings.BASE_DIR) / 'static' / 'watermark.png'
+        watermark_path = Path(settings.BASE_DIR) / "static" / "watermark.png"
         if not watermark_path.exists():
             return img
 
         WM_WIDTH, OPACITY, SPACING = 100, 0.5, 150
-        watermark = Image.open(watermark_path).convert('RGBA')
+        watermark = Image.open(watermark_path).convert("RGBA")
 
-        w_percent = (WM_WIDTH / float(watermark.size[0]))
-        wm_height = int((float(watermark.size[1]) * float(w_percent)))
+        w_percent = WM_WIDTH / float(watermark.size[0])
+        wm_height = int(float(watermark.size[1]) * float(w_percent))
         watermark = watermark.resize((WM_WIDTH, wm_height), Image.Resampling.LANCZOS)
 
         r, g, b, a = watermark.split()
         a = a.point(lambda p: p * OPACITY)
-        watermark = Image.merge('RGBA', (r, g, b, a))
+        watermark = Image.merge("RGBA", (r, g, b, a))
 
-        img_rgba = img.convert('RGBA')
-        overlay = Image.new('RGBA', img.size, (0, 0, 0, 0))
+        img_rgba = img.convert("RGBA")
+        overlay = Image.new("RGBA", img.size, (0, 0, 0, 0))
 
         for x in range(0, img.width, watermark.width + SPACING):
             for y in range(0, img.height, watermark.height + SPACING):
                 overlay.paste(watermark, (x, y), mask=watermark)
 
-        return Image.alpha_composite(img_rgba, overlay).convert('RGB')
+        return Image.alpha_composite(img_rgba, overlay).convert("RGB")
+
+
+# ===================== PROJECTS =====================
 
 class ProjectCategory(models.Model):
     name = models.CharField(max_length=100, verbose_name="Название категории")
@@ -57,8 +63,14 @@ class ProjectCategory(models.Model):
         verbose_name = "Категория проекта"
         verbose_name_plural = "Категории проектов"
 
+
 class Project(models.Model):
-    category = models.ForeignKey(ProjectCategory, on_delete=models.CASCADE, related_name='projects', verbose_name="Категория")
+    category = models.ForeignKey(
+        ProjectCategory,
+        on_delete=models.CASCADE,
+        related_name="projects",
+        verbose_name="Категория",
+    )
     title = models.CharField(max_length=255, verbose_name="Название проекта")
     slug = models.SlugField(unique=True, blank=True, verbose_name="Слаг")
     year = models.CharField(max_length=4, verbose_name="Год реализации")
@@ -81,14 +93,20 @@ class Project(models.Model):
         verbose_name = "Проект"
         verbose_name_plural = "Проекты"
 
+
 class ProjectImage(models.Model):
-    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='images', verbose_name="Проект")
-    image = models.ImageField(upload_to='projects/', verbose_name="Изображение")
+    project = models.ForeignKey(
+        Project,
+        on_delete=models.CASCADE,
+        related_name="images",
+        verbose_name="Проект",
+    )
+    image = models.ImageField(upload_to="projects/", verbose_name="Изображение")
     image_watermarked = ImageSpecField(
-        source='image',
+        source="image",
         processors=[WatermarkGridProcessor()],
-        format='JPEG',
-        options={'quality': 85}
+        format="JPEG",
+        options={"quality": 85},
     )
     is_main = models.BooleanField(default=False, verbose_name="Главное фото")
 
@@ -101,18 +119,186 @@ class ProjectImage(models.Model):
 
     def _convert_to_jpg(self):
         img = Image.open(self.image)
-        if img.mode != 'RGB':
-            img = img.convert('RGB')
+        if img.mode != "RGB":
+            img = img.convert("RGB")
+
         output = io.BytesIO()
-        img.save(output, format='JPEG', quality=95, optimize=True)
+        img.save(output, format="JPEG", quality=95, optimize=True)
         output.seek(0)
-        new_name = Path(self.image.name).with_suffix('.jpg').name
+
+        new_name = Path(self.image.name).with_suffix(".jpg").name
         self.image = ContentFile(output.read(), name=new_name)
 
     def _ensure_unique_main(self):
         with transaction.atomic():
-            ProjectImage.objects.filter(project=self.project, is_main=True).exclude(pk=self.pk).update(is_main=False)
+            ProjectImage.objects.filter(
+                project=self.project,
+                is_main=True,
+            ).exclude(pk=self.pk).update(is_main=False)
 
     class Meta:
         verbose_name = "Изображение проекта"
         verbose_name_plural = "Изображения проектов"
+
+
+# ===================== PLANTS =====================
+
+class PlantCategory(models.Model):
+    name = models.CharField(max_length=100, verbose_name="Название категории")
+    slug = models.SlugField(unique=True, blank=True, verbose_name="Слаг")
+    description = models.TextField(blank=True, verbose_name="Описание")
+    count_label = models.CharField(
+        max_length=50,
+        blank=True,
+        verbose_name="Надпись количества",
+        help_text="Например: 150+ видов",
+    )
+    sort_order = models.PositiveIntegerField(default=0, verbose_name="Порядок")
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = slugify(unidecode(self.name))
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        verbose_name = "Категория растения"
+        verbose_name_plural = "Категории растений"
+        ordering = ["sort_order", "name"]
+
+
+class PlantSubcategory(models.Model):
+    category = models.ForeignKey(
+        PlantCategory,
+        on_delete=models.CASCADE,
+        related_name="subcategories",
+        verbose_name="Категория",
+    )
+    name = models.CharField(max_length=100, verbose_name="Название подкатегории")
+    slug = models.SlugField(blank=True, verbose_name="Слаг")
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = slugify(unidecode(self.name))
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.category.name} — {self.name}"
+
+    class Meta:
+        verbose_name = "Подкатегория растения"
+        verbose_name_plural = "Подкатегории растений"
+        ordering = ["name"]
+        unique_together = ("category", "slug")
+
+
+class Plant(models.Model):
+    category = models.ForeignKey(
+        PlantCategory,
+        on_delete=models.CASCADE,
+        related_name="plants",
+        verbose_name="Категория",
+    )
+    subcategory = models.ForeignKey(
+        PlantSubcategory,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="plants",
+        verbose_name="Подкатегория",
+    )
+
+    name = models.CharField(max_length=255, verbose_name="Название")
+    latin_name = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name="Латинское название",
+    )
+    slug = models.SlugField(unique=True, blank=True, verbose_name="Слаг")
+
+    description = models.TextField(blank=True, verbose_name="Описание")
+
+    price_from = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        verbose_name="Цена от",
+    )
+    price_text = models.CharField(
+        max_length=100,
+        blank=True,
+        verbose_name="Текст цены",
+        help_text="Если заполнено, будет показано вместо price_from. Например: по запросу",
+    )
+
+    height = models.CharField(max_length=100, blank=True, verbose_name="Высота")
+    age = models.CharField(max_length=100, blank=True, verbose_name="Возраст")
+
+    in_stock = models.BooleanField(default=True, verbose_name="В наличии")
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            base_slug = slugify(unidecode(self.name))
+            self.slug = f"{base_slug}-{str(uuid.uuid4())[:6]}"
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.name
+
+    @property
+    def main_image(self):
+        main = self.images.filter(is_main=True).first() or self.images.first()
+        return main.image_watermarked.url if main and main.image else None
+
+    class Meta:
+        verbose_name = "Растение"
+        verbose_name_plural = "Растения"
+        ordering = ["name"]
+
+
+class PlantImage(models.Model):
+    plant = models.ForeignKey(
+        Plant,
+        on_delete=models.CASCADE,
+        related_name="images",
+        verbose_name="Растение",
+    )
+    image = models.ImageField(upload_to="plants/", verbose_name="Изображение")
+    image_watermarked = ImageSpecField(
+        source="image",
+        processors=[WatermarkGridProcessor()],
+        format="JPEG",
+        options={"quality": 85},
+    )
+    is_main = models.BooleanField(default=False, verbose_name="Главное фото")
+
+    def save(self, *args, **kwargs):
+        if self.image:
+            self._convert_to_jpg()
+        if self.is_main:
+            self._ensure_unique_main()
+        super().save(*args, **kwargs)
+
+    def _convert_to_jpg(self):
+        img = Image.open(self.image)
+        if img.mode != "RGB":
+            img = img.convert("RGB")
+
+        output = io.BytesIO()
+        img.save(output, format="JPEG", quality=95, optimize=True)
+        output.seek(0)
+
+        new_name = Path(self.image.name).with_suffix(".jpg").name
+        self.image = ContentFile(output.read(), name=new_name)
+
+    def _ensure_unique_main(self):
+        with transaction.atomic():
+            PlantImage.objects.filter(
+                plant=self.plant,
+                is_main=True,
+            ).exclude(pk=self.pk).update(is_main=False)
+
+    class Meta:
+        verbose_name = "Изображение растения"
+        verbose_name_plural = "Изображения растений"

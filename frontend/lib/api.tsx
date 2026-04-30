@@ -10,6 +10,7 @@ export interface Project {
   area: string;
   year: string;
   main_image: string;
+  short_description?: string;
   category: {
     id: number;
     name: string;

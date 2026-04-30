@@ -24,7 +24,7 @@ INSTALLED_APPS = [
     'imagekit',
 
     # local
-    'main',
+    'main.apps.MainConfig',
 
     # third party
     'django_cleanup.apps.CleanupConfig',
